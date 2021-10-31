@@ -1,0 +1,700 @@
+---
+title: "Comparatif"
+subtitle: "Rapport d'Analyses Statistiques"
+author: "Par Legueult K. pour la DRCI"
+date: "`r base::paste0('Version du ', format(Sys.time(), '%d %B %Y'))`"
+csl: /Users/kevinlegueult/Zotero/styles/elsevier-vancouver.csl
+output: 
+  html_document:
+    # Style
+    css: /Users/kevinlegueult/Documents/Travail/Methodologique/2021_Marine_naissance/Scripts/css/style.css
+    # Table of Content
+    toc: true              # Visibility
+    toc_depth: 2           # Depth of headers
+    toc_float: true        # Floating on the left side of the screen
+    toc_collapsed: true    # Collapsed (only the top level header appears)
+    toc_color: #F2D785
+    smooth_scroll: true    # Page scrolls are animated
+    # Appearance
+    number_sections: true  # Number to headers
+    theme: journal         # Themes (https://bootswatch.com/3/)
+    #highlight: kate       # Syntax highlighting style (default, tango, pygments, kate, monochrome, espresso, zenburn, haddock, breezedark, and textmate)
+    smart: true            # Produce typographically correct output
+    # Code
+    code_folding: hide     # Hide or show code
+    # Figures
+    fig_caption: true      # Caption to figures
+---
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# ==== Packages ====
+pacman::p_load(char    = c("data.table",
+                           "dplyr",
+                           "here",
+                           "ggplot2",
+                           "ggdist",
+                           "lubridate",
+                           #"moments",
+                           "modelsummary",
+                           #"MMWRweek",
+                           "readr",
+                           "readxl",
+                           "stringi",
+                           "stringr",
+                           "xlsx"),
+               install = TRUE,
+               update  = TRUE,
+               character.only = TRUE)
+
+# ==== Fonctions personnelles ====
+'%ni%' <- base::Negate('%in%')
+```
+
+# Dataset
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+db_atih <- readr::read_tsv(file = here::here("visualvaloM82021.txt"))
+
+db_pmsi <- readxl::read_excel(path      = here::here("pmsi.xlsx"),
+                              sheet     = 1,
+                              skip      = 0,
+                              col_names = TRUE,
+                              col_types = "guess",
+                              na        = c("", " ", "NA", "NSP", "x", "à"))
+db_pmsi <- data.table::as.data.table(db_pmsi)
+
+db_cora <- readxl::read_excel(path      = here::here("cora.xlsx"),
+                              sheet     = 1,
+                              skip      = 0,
+                              col_names = TRUE,
+                              col_types = "guess",
+                              na        = c("", " ", "NA", "NSP", "x", "à"))
+db_cora <- data.table::as.data.table(db_cora)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+# ==== ATIH data set ====
+
+# Numéro de séjour
+db_atih <- data.table::as.data.table(db_atih)[
+  j = sejour_num_atih := base::as.character(NO_ADMIN)
+][
+  j = -c("NO_ADMIN")
+]
+
+# Numéro de rss
+db_atih <- data.table::as.data.table(db_atih)[
+  j = rss_num := base::as.character(NO_RSS)
+][
+  j = -c("NO_RSS")
+]
+
+# Coefficient segur
+db_atih <- db_atih[
+  j = segur_coeff := base::round(base::as.numeric(`COEFSEG`), 4)
+][
+  j = -c("COEFSEG")
+]
+
+# Montant GHS
+db_atih <- db_atih[
+  j = ghs_segur_atih := base::round(base::as.numeric(`MNT_GHS`), 2)
+][
+  j = -c("MNT_GHS")
+]
+
+# Montant total
+db_atih <- db_atih[
+  j = ghs_total_segur_atih := base::round(base::as.numeric(`MNT_TOT`), 2)
+][
+  j = -c("MNT_TOT")
+]
+
+# Date de sortie
+db_atih2 <- db_atih[
+  j = DATE_SOR := lubridate::dmy(DATE_SOR)
+][
+  i = DATE_SOR %between% c("2021/01/01", "2021/08/31")
+]
+
+
+
+
+
+# === PMSI data set ===
+db_pmsi <- db_pmsi[
+  j = rss_num := base::as.character(`Numéro de RSS`)
+][
+  j = -c("Numéro de RSS")
+][
+  i = base::is.na(rss_num) == FALSE
+]
+
+db_pmsi <- db_pmsi[
+  j = ghs_pmsi := base::round(base::as.numeric(`Tarif du GHS`), 2)
+][
+  j = -c("Tarif du GHS")
+]
+
+db_pmsi <- db_pmsi[
+  j = ghs_segur_pmsi := base::round(base::as.numeric(`Valo. GHS (T2A)`), 2)
+][
+  j = -c("Valo. GHS (T2A)")
+]
+
+
+db_pmsi <- db_pmsi[
+  j = ghs_total_segur_pmsi := base::round(base::as.numeric(`Valorisation du RSS (T2A)`), 2)
+][
+  j = -c("Valorisation du RSS (T2A)")
+]
+
+db_pmsi <- db_pmsi[
+  j = sejour_duree_administrative := base::round(base::as.numeric(`Durée de séjour administrative`), 2)
+][
+  j = -c("Durée de séjour administrative")
+]
+
+
+db_pmsi <- db_pmsi[
+  j = sejour_duree_brute := base::round(base::as.numeric(`Durée de séjour brute`), 2)
+][
+  j = -c("Durée de séjour brute")
+]
+
+
+
+db_pmsi <- db_pmsi[
+  j = sejour_duree_pmsi := base::round(base::as.numeric(`Durée de séjour PMSI`), 2)
+][
+  j = -c("Durée de séjour PMSI")
+]
+
+# GHS
+db_pmsi <- data.table::as.data.table(db_pmsi)[
+  j = ghs_code := base::as.character(`GHS (Code)`)
+][
+  j = -c("GHS (Code)")
+]
+
+
+
+
+# === CORA data set ===
+# IPP du patient
+db_cora <- db_cora[
+  j = ipp_patient := base::as.character(`NUM IPP PATIENT`)
+][
+  j = -c("NUM IPP PATIENT")
+]
+
+# Numéro de séjour
+db_cora <- db_cora[
+  j = sejour_num_cora := base::as.character(`NUM SEJOUR`)
+][
+  j = -c("NUM SEJOUR")
+]
+
+# Numéro de RSS
+db_cora <- db_cora[
+  j = rss_num := base::as.character(ID_RSS)
+][
+  j = -c("ID_RSS")
+]
+
+# Montant GHS
+db_cora <- db_cora[
+  j = ghs_cora := base::round(base::as.numeric(`MONTANT GHS RSS`), 2)
+][
+  j = -c("MONTANT GHS RSS")
+]
+
+# Libélé GHS
+db_cora <- db_cora[
+  j = ghs_libele := base::as.character(`LIB GHS`)
+][
+  j = -c("LIB GHS")
+]
+
+# Montant GHS
+db_cora <- db_cora[
+  j = rss_total_cora := base::round(base::as.numeric(`MONTANT TOTAL RSS`), 2)
+][
+  j = -c("MONTANT TOTAL RSS")
+]
+
+
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+db_data <- data.table::merge.data.table(x = db_cora,
+                                        y = db_pmsi,
+                                        by = "rss_num",
+                                        all = TRUE)
+
+db_data <- data.table::merge.data.table(x = db_data,
+                                        y = db_atih2,
+                                        by = "rss_num",
+                                        all = TRUE)
+db_data <- db_data[i = base::is.na(`sejour_num_atih`) == FALSE]
+
+# Montant GHS
+db_data <- db_data[
+  j = ghs_segur_cora := base::round(segur_coeff * ghs_cora, 2)
+]
+# Montant GHS
+db_data <- db_data[
+  j = ghs_total_segur_cora := base::round(segur_coeff * rss_total_cora, 2)
+]
+
+# diff atih-cora
+db_data <- db_data[
+  j = diff_atih_cora := base::round(ghs_total_segur_atih-ghs_total_segur_cora, 2)
+]
+
+# diff atih-pmsi
+db_data <- db_data[
+  j = diff_atih_pmsi := base::round(ghs_total_segur_atih-ghs_total_segur_pmsi, 2)
+]
+
+#db_data <- db_data[
+#  j = -c("rss_total_cora", "ghs_cora", "ghs_pmsi", "MNT_MAJO", "MNT_SUPPHD", "MNT_SUPPHD_AM", "MNT_SUPPENT1", #"MNT_SUPPENT1_AM", "MNT_SUPPENT2", "MNT_SUPPENT2_AM", "MNT_SUPPENT3", "MNT_SUPPENT3_AM", "MNT_DIP", "MNT_DIP_AM", #"SUPPHD", "SUPPENT1", "SUPPENT2", "SUPPENT3", "NB_DIP","TYPORG","TYPORG5", "TYPORG6","TYPORG7"                         #                               
+#         ,"TYPORG8","TYPORG9"                                                        
+#         ,"TYPORGA","MNT_PO1"                                                        
+#         ,"MNT_PO1_AM","MNT_PO2"                                                        
+#         ,"MNT_PO2_AM","MNT_PO3"                                                        
+#         , "MNT_PO3_AM","MNT_PO4"                                                        
+#         , "MNT_PO4_AM","MNT_PO5"                                                        
+#         , "MNT_PO5_AM","MNT_PO6"                                                        
+#         , "MNT_PO6_AM","MNT_PO7"                                                        
+#         , "MNT_PO7_AM","MNT_PO8"                                                        
+#         , "MNT_PO8_AM","MNT_PO9"                                                        
+#         , "MNT_PO9_AM","MNT_POA"                                                        
+#         , "MNT_POA_AM","NB_9610"                                                        
+#         , "MNT_9610","MNT_9610_AM"                                                    
+#         , "NB_9619","MNT_9619"                                                       
+#         , "MNT_9619_AM","NB_9620"                                                        
+#         , "MNT_9620","MNT_9620_AM"                                                    
+#         , "NB_9621","MNT_9621", "MNT_9621_AM","NB_9622"                                                        
+#         , "MNT_9622","MNT_9622_AM"                                                    
+#         , "NB_9623","MNT_9623"                                                       
+#         ,"MNT_9623_AM","NB_9625"                                                        
+#         ,"MNT_9625","MNT_9625_AM"                                                    
+#         , "NB_9631","MNT_9631"                                                       
+#         , "MNT_9631_AM","NB_9632"                                                        
+#         , "MNT_9632","MNT_9632_AM"                                                    
+#         , "NB_9633","MNT_9633"                                                       
+#         , "MNT_9633_AM","NB_9615"                                                        
+#         , "MNT_9615","MNT_9615_AM", "NBREP", "MNT_REP", "MNT_REP_AM" , "NB_SRC2", "MNT_SC", "MNT_SC_AM", "NB_NN2"     #                                                    
+#         , "MNT_NN2","MNT_NN2_AM"                                                     
+#         , "NB_NN3","MNT_NN3"                                                        
+#         , "MNT_NN3_AM","NBCAISSON"                                                      
+#         , "MNT_CAISSON","MNT_CAISSON_AM"                                                 
+#         , "NB_RAP","MNT_RAP"                                                        
+#         , "MNT_RAP_AM","NB_ANT", "MNT_ANT","MNT_ANT_AM"                                                     
+#         , "NB_Inno","MNT_Inno"                                                       
+#         , "MNT_Inno_AM","NB_SDC"                                                         
+#         , "MNT_SDC","MNT_SDC_AM", "FLAG_FIDES", "COEFREP")
+#]
+
+db_data <- data.table::setcolorder(x = db_data,
+                                   neworder = c("ipp_patient", 
+                                                "rss_num", 
+                                                "sejour_num_cora", "sejour_num_atih", 
+                                                "ghs_libele", "ghs_code",
+                                                "sejour_duree_administrative", "sejour_duree_brute", "sejour_duree_pmsi",
+                                                "segur_coeff",
+                                                "ghs_segur_pmsi", "ghs_segur_cora", "ghs_segur_atih",
+                                                "ghs_total_segur_pmsi", "ghs_total_segur_cora", "ghs_total_segur_atih",
+                                                "diff_atih_pmsi", "diff_atih_cora",
+                                                "MNT_IVG", "MNT_MON", "MNT_DMI", "MNT_GHS50"))
+```
+
+Nous avons fusionné les 3 datasets (extractions `PMSIPilot`, `Cora`, et données de `l'ATIH`), sur les `numéros RSS`, sur la période du mois d'`Août 2021`.
+
+- Le dataset `ATIH` contenait `r nrow(db_atih)` lignes et `r length(db_atih)` ;
+- Le dataset `PMSIPilot` contenait `r nrow(db_pmsi)` lignes et `r length(db_pmsi)` ;
+- Le dataset `CORA` contenait `r nrow(db_cora)` lignes et `r length(db_cora)` (ce qui témoigne d'un rattrapage ultérieur à l'envoi).
+
+Ne serons analysées que les données retrouvées dans les 3 jeux.
+
+*Ps: Cora ne tient pas compte de la valorisation ségur. Elle a été corrigée à partir de la variable `COEFSEG` du dataset `ATIH` afin de rendre les données comparables entre elles.*
+
+# Analyse des données
+## Comparaison des tarifs des GHS
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+db_discordance <- db_data[
+  i = ghs_total_segur_cora != ghs_total_segur_atih | ghs_total_segur_pmsi != ghs_total_segur_atih
+]
+```
+
+Sur le `r nrow(db_data)` GHS, il existe `r nrow(db_discordance)` données discordantes entre la valorisation totale par l'ATIH, et la valorisation CORA ou PMSIPilot, soit `r base::round(nrow(db_discordance)/nrow(db_data)*100, 1)` % des données.
+
+### Valorisation accordée molécules onéreuses
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp_mon <- db_discordance[
+  i = MNT_MON > 0
+]
+```
+
+Certaines discordances sont imputables à l'existence de molécules onéreuses. On en dénombre `r nrow(temp_mon)` soit `r base::round(nrow(temp_mon)/nrow(db_discordance)*100, 1)` % des discordances.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp <- db_discordance[
+  i = MNT_MON > 0
+][
+  i = ghs_total_segur_atih > ghs_total_segur_cora
+]
+
+temp <- db_discordance[
+  i = MNT_MON > 0
+][
+  j = CORRECTION := ghs_total_segur_pmsi + MNT_MON + MNT_DMI + MNT_IVG + MNT_GHS50 + MNT_MED_ATU
+][
+  j = CORRECTION_DIFF := base::abs(CORRECTION - ghs_total_segur_atih)
+][
+  j = c("ipp_patient", 
+        "rss_num", 
+        "sejour_num_cora", "sejour_num_atih", 
+        "ghs_libele", "ghs_code",
+        "sejour_duree_administrative", "sejour_duree_brute", "sejour_duree_pmsi",
+        "segur_coeff",
+        "ghs_segur_pmsi", "ghs_segur_cora", "ghs_segur_atih",
+        "ghs_total_segur_pmsi", "ghs_total_segur_cora", "ghs_total_segur_atih", "MNT_IVG", "MNT_MON", "MNT_DMI", "MNT_GHS50", "MNT_MED_ATU", "CORRECTION", "CORRECTION_DIFF")
+][
+  i = CORRECTION_DIFF > 0.02
+]
+```
+
+Certaines partagent également une valorisation supplémentaires avec la présence d'un DMI ou d'un médicament disposant d'une autorisation temporaire d'utilisation.
+
+### Valorisation IVG
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp_ivg <- db_data[
+  i = ghs_libele == "Interruption volontaire de grossesse : séjours de moins de 3 jours."
+]
+```
+
+Parmi ces discordances, `r nrow(temp_ivg)` sont reliées aux **Interruptions volontaires de grossesses de moins de 3 jours**,  soit `r base::round(nrow(temp_ivg)/nrow(db_discordance)*100, 1)` % des discordances.
+
+PMSIPilot attribue une valorisation d'un montant de 282,91 euros (pour une IVG médicamenteuse  GHS `AMF`) et 603,59 euros (pour une IVG chirurgicale GHS `AMD`). 
+
+- Cette valorisation n'est pas retrouvée dans les données de Cora. 
+
+- En revanche, elle est retrouvée en 2 temps dans les données de l'ATIH. Initialement nulle, elle est compensée par une valorisation secondaire retrouvée à la variable `MNT_IVG`.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp <- db_discordance[
+  i = ghs_libele == "Interruption volontaire de grossesse : séjours de moins de 3 jours."
+][
+  i = ghs_total_segur_atih > ghs_total_segur_cora
+]
+
+temp <- db_discordance[
+  i = ghs_libele == "Interruption volontaire de grossesse : séjours de moins de 3 jours."
+][
+  j = CORRECTION := ghs_total_segur_cora + MNT_MON + MNT_DMI + MNT_IVG + MNT_GHS50 + MNT_MED_ATU
+][
+  j = CORRECTION_DIFF := base::abs(CORRECTION - ghs_total_segur_atih)
+][
+  j = c("ipp_patient", 
+        "rss_num", 
+        "sejour_num_cora", "sejour_num_atih", 
+        "ghs_libele", "ghs_code",
+        "sejour_duree_administrative", "sejour_duree_brute", "sejour_duree_pmsi",
+        "segur_coeff",
+        "ghs_segur_pmsi", "ghs_segur_cora", "ghs_segur_atih",
+        "ghs_total_segur_pmsi", "ghs_total_segur_cora", "ghs_total_segur_atih", "MNT_IVG", "MNT_MON", "MNT_DMI", "MNT_GHS50", "CORRECTION", "CORRECTION_DIFF")
+][
+  i = CORRECTION_DIFF > 0.02
+]
+```
+
+
+### Valorisation accordée aux Dispositifs Médicaux Implantables
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp_dmi <- db_discordance[
+  i = MNT_DMI > 0
+]
+```
+
+Parmi les discordances, `r nrow(temp_dmi)` sont reliées à un DMI, soit `r base::round(nrow(temp_dmi)/nrow(db_discordance)*100, 1)` % des discordances.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp <- db_discordance[
+  i = MNT_DMI != 0
+][
+  i = ghs_total_segur_atih > ghs_total_segur_cora
+]
+
+temp <- db_discordance[
+  i = MNT_DMI > 0
+][
+  j = CORRECTION := ghs_total_segur_pmsi + MNT_MON + MNT_DMI + MNT_IVG + MNT_GHS50 + MNT_MED_ATU
+][
+  i = base::abs(CORRECTION - ghs_total_segur_atih) > 0.02
+]
+
+
+temp <- data.table::setcolorder(x = temp,
+                                neworder = c("ipp_patient", 
+                                             "rss_num", 
+                                             "sejour_num_cora", "sejour_num_atih", 
+                                             "ghs_libele", "ghs_code",
+                                             "sejour_duree_administrative", "sejour_duree_brute", "sejour_duree_pmsi",
+                                             "segur_coeff",
+                                             "ghs_segur_pmsi", "ghs_segur_cora", "ghs_segur_atih",
+                                             "ghs_total_segur_pmsi", "ghs_total_segur_cora", "ghs_total_segur_atih", "MNT_IVG", "MNT_MON", "MNT_DMI", "MNT_GHS50", "CORRECTION"))
+```
+
+En additionnant ce montant aux valorisation du pmsi et de cora, il reste une erreur. Le RSS numéro `480324` contient également une discordance sur les molécules onéreuses. Les DMI sont donc valorisés ultérieurement.
+
+### Valorisation AM des séjours avec réhospitalisation dans le même GHM
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp_ghs50 <- db_discordance[
+  i = MNT_GHS50 != 0
+]
+```
+
+Il existe une seule discordance due à un excès de valorisation dans Cora. La patiente de 73 ans a été hospitalisée pour une angiocholite au CHD, puis elle a été transferé à Marseille pour une CPRE. Ce séjour s'étant prolongé, son retour à draguignan a créé une nouvelle hospitalisation avec le même GHM. 
+
+Aussi, cora n'a pas tenu compte de ce lien entre les deux séjours, erreur corrigée dans PMSIPilot et l'ATIH.
+
+### Valorisation accordée médicaments ATU/POST ATU
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp_atu <- db_discordance[
+  i = MNT_MED_ATU != 0
+]
+```
+
+Il existe `r base::nrow(temp_atu)` discordances due à un manque de valorisation dans Cora, soit `r base::round(nrow(temp_atu)/nrow(db_discordance)*100, 1)` % des discordances. 
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp <- db_discordance[
+  i = MNT_MED_ATU != 0 & MNT_MON > 0
+]
+```
+
+`r base::nrow(temp)` d'entre-elles ont également un problème lié à une molécule onéreuse, ces deux valorisations étant souvent présentes en même temps.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp <- db_discordance[
+  i = MNT_MED_ATU > 0
+][
+  j = CORRECTION := ghs_total_segur_pmsi +  MNT_MON + MNT_DMI + MNT_IVG + MNT_GHS50 + MNT_MED_ATU
+][
+  j = c("ipp_patient", 
+        "rss_num", 
+        "sejour_num_cora", "sejour_num_atih", 
+        "ghs_libele", "ghs_code",
+        "sejour_duree_administrative", "sejour_duree_brute", "sejour_duree_pmsi",
+        "segur_coeff",
+        "ghs_segur_pmsi", "ghs_segur_cora", "ghs_segur_atih",
+        "ghs_total_segur_pmsi", "ghs_total_segur_cora", "ghs_total_segur_atih", "MNT_MED_ATU", "CORRECTION")
+][
+  i = base::abs(CORRECTION - ghs_total_segur_atih) > 0.02
+]
+```
+
+En tenant compte des deux valorisations (`MNT_MON` & `MNT_MED_ATU`), on corrige toutes les erreurs.
+
+### Rattrapages
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp <- db_discordance[
+  i = MNT_GHS50 == 0 & MNT_MON == 0 & MNT_DMI == 0 & MNT_MED_ATU == 0 &
+    ghs_libele != "Interruption volontaire de grossesse : séjours de moins de 3 jours."
+]
+```
+
+Pour les `r base::nrow(temp)` dernières discordances, il n'y a plus de moyen direct ou indirect de corriger les erreurs. Nous avons besoin de nous plonger dans les dossiers pour avoir plus de détails.
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp_rattrapages <- db_discordance[
+  i = rss_num %in% c("484262",
+                     "483251",
+                     "484023",
+                     "484282",
+                     "461314",
+                     "461821",
+                     "463474",
+                     "463597",
+                     "463740",
+                     "464283",
+                     "464879",
+                     "465430",
+                     "465572",
+                     "465603",
+                     "471675",
+                     "475434",
+                     "480763",
+                     "481103",
+                     "481481",
+                     "481577",
+                     "481932")
+]
+```
+
+Parmi eux, `r base::nrow(temp_rattrapages)` sont des rattrapages simples.
+
+### Valorisation de Surveillance Continue
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE, plain.ascii=FALSE}
+temp_sc <- db_discordance[
+  i = MNT_SC > 0
+]
+
+
+temp_sc <- data.table::setcolorder(x = temp_sc,
+                                neworder = c("ipp_patient", 
+                                             "rss_num", 
+                                             "sejour_num_cora", "sejour_num_atih", 
+                                             "ghs_libele", "ghs_code",
+                                             "sejour_duree_administrative", "sejour_duree_brute", "sejour_duree_pmsi",
+                                             "segur_coeff",
+                                             "ghs_segur_pmsi", "ghs_segur_cora", "ghs_segur_atih",
+                                             "ghs_total_segur_pmsi", "ghs_total_segur_cora", "ghs_total_segur_atih", "MNT_IVG", "MNT_MON", "MNT_DMI", "MNT_GHS50", "MNT_MED_ATU", "MNT_SC"))
+```
+
+Ces anomalies ne sont pas totalement expliquées par une des raisons ci-dessus.
+
+
+
+# En résumé
+<p class="comment-blue">
+Les `IVG` sont valorisées dans l'`ATIH` et dans `PMSI-Pilot` ;<br ALIGN = 'LEFT'/> 
+Les `réhospitalisations` avec GHM identiques sont dévalorisées dans l'`ATIH` et `PMSI-Pilot` ;<br ALIGN = 'LEFT'/> 
+Les `molécules onéreuses` sont valorisées dans l'`ATIH` ;<br ALIGN = 'LEFT'/> 
+Les `dispositifs médicaux implantables` sont valorisées dans l'`ATIH` ;<br ALIGN = 'LEFT'/> 
+Les `médicaments ATU & post-ATU` sont valorisées dans l'`ATIH` ;<br ALIGN = 'LEFT'/> 
+La passage en `caisson hyperbarre` n'est pas valorisés dans l'`ATIH` ni `PMSI-Pilot` ;<br ALIGN = 'LEFT'/> 
+</p>
+
+```{r eval=FALSE, include=FALSE}
+# ==== Data set graphique ====
+temp_mon <- temp_mon[
+  j = c("rss_num")
+][
+  j = `Molécules onéreuses` := "Molécules onéreuses"
+]
+
+temp_ivg <- temp_ivg[
+  j = c("rss_num")
+][
+  j = `IVG` := "IVG"
+]
+
+temp_dmi <- temp_dmi[
+  j = c("rss_num")
+][
+  j = `Dispositifs implantables` := "DMI"
+]
+
+temp_atu <- temp_atu[
+  j = c("rss_num")
+][
+  j = `Autorisation temporaire d'utilisation` := "ATU"
+]
+
+temp_ghs50 <- temp_ghs50[
+  j = c("rss_num")
+][
+  j = `Réhospitalisation avec le même GHS` := "Réhospitalisation (GHS identique)"
+]
+
+temp_rattrapages <- temp_rattrapages[
+  j = c("rss_num")
+][
+  j = `Rattrapages` := "Rattrapages"
+]
+
+temp_sc <- temp_sc[
+  j = c("rss_num")
+][
+  j = `Surveillance continue` := "Surveillance continue"
+]
+
+db_temp <- data.table::merge.data.table(x = temp_mon,
+                                        y = temp_ivg,
+                                        by = "rss_num",
+                                        all = TRUE)
+
+db_temp <- data.table::merge.data.table(x = db_temp,
+                                        y = temp_dmi,
+                                        by = "rss_num",
+                                        all = TRUE)
+
+db_temp <- data.table::merge.data.table(x = db_temp,
+                                        y = temp_atu,
+                                        by = "rss_num",
+                                        all = TRUE)
+
+db_temp <- data.table::merge.data.table(x = db_temp,
+                                        y = temp_ghs50,
+                                        by = "rss_num",
+                                        all = TRUE)
+
+db_temp <- data.table::merge.data.table(x = db_temp,
+                                        y = temp_rattrapages,
+                                        by = "rss_num",
+                                        all = TRUE)
+
+db_temp <- data.table::merge.data.table(x = db_temp,
+                                        y = temp_sc,
+                                        by = "rss_num",
+                                        all = TRUE)
+
+# ==== Data management ====
+db_temp <- db_temp[
+  j = Anomalie := base::paste0(`Molécules onéreuses`, " & " ,`IVG`, " & " ,`Dispositifs implantables`, " & " ,`Autorisation temporaire d'utilisation`, " & " ,`Réhospitalisation avec le même GHS`, " & " ,`Rattrapages`, " & " ,`Autre anomalie`)
+][
+  j = Anomalie := dplyr::recode(base::as.factor(Anomalie),
+                                "Molécules onéreuses & NA & DMI & NA & NA & NA & NA" = "Molécules onéreuses & DMI",
+                                "Molécules onéreuses & NA & NA & ATU & NA & NA & NA" = "Molécules onéreuses & ATU",
+                                "Molécules onéreuses & NA & NA & NA & NA & NA & NA" = "Molécules onéreuses",                                
+                                "NA & IVG & NA & NA & NA & NA & NA" = "IVG",
+                                "NA & NA & DMI & NA & NA & NA & NA" = "DMI",
+                                "NA & NA & NA & ATU & NA & NA & NA" = "ATU",
+                                "NA & NA & NA & NA & NA & NA & Surveillance continue" = "Surveillance continue",
+                                "NA & NA & NA & NA & NA & Rattrapages & NA" = "Rattrapages",                                         
+                                "NA & NA & NA & NA & Réhospitalisation (GHS identique) & NA & NA" = "Réhospitalisation (GHS identique)")
+]
+
+db_temp2 <- db_temp[
+  j = n := .N,
+  by = "Anomalie"
+][
+  j = .SD[1],
+  by = "Anomalie"
+][
+  j = c("Anomalie", "n")
+]
+
+ggplot2::ggplot() +
+  ggplot2::geom_bar(data = db_temp2,
+                    mapping = ggplot2::aes(x = forcats::fct_reorder(Anomalie, n),
+                                           y = n),
+                    stat   = "identity") +
+  ggplot2::geom_label(data = db_temp2,
+                      mapping = ggplot2::aes(x = forcats::fct_reorder(Anomalie, n),
+                                             y = n,
+                                             label = n),
+                      stat   = "identity") +
+  # ==== Background & Grid ====
+ggplot2::theme(plot.background = ggplot2::element_rect(fill = "white"),
+               plot.margin     = ggplot2::margin(t = 5,
+                                                 r = 5,
+                                                 b = 5,
+                                                 l = 5),
+               panel.background   = ggplot2::element_rect(fill = "white"),
+               panel.grid.major.y = ggplot2::element_blank(),
+               panel.grid.minor.y = ggplot2::element_blank(),
+               panel.grid.major.x = ggplot2::element_blank(),
+               panel.grid.minor.x = ggplot2::element_blank())  +
+  ggplot2::coord_flip()
+```
+
